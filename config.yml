@@ -55,10 +55,10 @@ outputs:
 
 menu:
   main:
-    # - identifier: posts
-    #   name: Posts
-    #   url: /posts
-    #   weight: 10
+    - identifier: posts
+      name: Posts
+      url: /posts
+      weight: 10
     - identifier: search
       name: Search
       url: /search
