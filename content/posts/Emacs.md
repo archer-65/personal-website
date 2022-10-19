@@ -497,6 +497,13 @@ Here the `init.appearance.el` file.
   :hook
   (prog-mode-hook . display-line-numbers-mode))
 
+ '(telega-entity-type-code        ((t (:inherit fixed-pitch))))
+
+(defun my-modus-themes-custom-faces ()
+  (modus-themes-with-colors
+    (custom-set-faces
+     `(telega-entity-type-code ((,class :inherit modus-themes-fixed-pitch :background ,bg-special-calm :foreground ,fg-special-calm))))))
+
 ;; Themes section
 ;; For packaged versions which must use `require':
 (leaf modus-themes
@@ -526,6 +533,8 @@ Here the `init.appearance.el` file.
         modus-themes-subtle-line-numbers nil
         modus-themes-mode-line '(borderless accented))
   (modus-themes-load-themes)
+  :hook
+  (modus-themes-after-load-theme-hook . my-modus-themes-custom-faces)
   :config
   ;; Load the theme of your choice:
   (modus-themes-load-operandi))
@@ -786,6 +795,8 @@ Keybindings and configuration are in the `init-consult.el` file.
 (leaf consult
   :doc "Practical commands based on the Emacs completion function completing-read."
   :straight t
+  :init
+  (add-to-list 'consult-buffer-sources 'coding-buffer-source 'append)
   ;; Replace bindings. Lazily loaded due by `use-package'.
   :bind (;; C-c bindings (mode specific)
          ("C-c h" . consult-history)
@@ -2393,7 +2404,8 @@ Beautiful client, maybe the best telegram client around. A PITA, sometimes, due 
   (define-key global-map (kbd "C-c t") telega-prefix-map)
   (setq telega-completing-read-function 'completing-read)
   :hook
-  (telega-load-hook . telega-notifications-mode))
+  (telega-load-hook . telega-notifications-mode)
+  (telega-chat-mode-hook . telega-mnz-mode))
 
 ```
 
