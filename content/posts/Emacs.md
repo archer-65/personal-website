@@ -1432,6 +1432,8 @@ With `ibuffer` I can group buffers in `Gnus` style, customize actions rememberin
            ("c/c++" (or (mode . c-mode)
                         (mode . c++-mode)))
            ("nix" (mode . nix-mode))
+           ("telegram" (or (mode . telega-mode)
+                           (mode . telega-chat-mode)))
            ("documents" (or (name . "\\.pdf")
                             (name . "\\.org")))
            ("emacs" (or
@@ -2347,7 +2349,17 @@ The best terminal emulator in Emacs.
 (leaf vterm
   :commands (vterm vterm-other-window)
   :init
-  (unless (archer/using-nix-p) straight-use-package 'vterm))
+  (unless (archer/using-nix-p) straight-use-package 'vterm)
+  :bind
+  ("<f5>" . vterm)
+  :config
+  (setq-default vterm-buffer-name " <<Terminal>>")
+  (add-to-list 'display-buffer-alist
+               '("\xe795 <<Terminal>>" ;; Original regex: "\*vterm\*"
+                 (display-buffer-in-side-window)
+                 (window-height . 0.25)
+                 (side . bottom)
+                 (slot . 0))))
 
 ```
 
