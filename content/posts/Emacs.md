@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-18
+date = 2022-10-19
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -304,7 +304,7 @@ Right now I'm good with 16MB for high threshold.
 #### Minor tweaks {#minor-tweaks}
 
 Aaand, here other code stolen from DOOM.
-Performance are really better with this snippet (for me).
+Performances are really better with this snippet (for me).
 
 ```emacs-lisp
 
@@ -345,7 +345,7 @@ Performance are really better with this snippet (for me).
 ```
 
 
-### Pick up me mom, I'm scared! {#pick-up-me-mom-i-m-scared}
+### Pick me up mom, I'm scared! {#pick-me-up-mom-i-m-scared}
 
 ```emacs-lisp
 
@@ -353,10 +353,10 @@ Performance are really better with this snippet (for me).
 
 ```
 
-Sometimes we forget shortcuts as we type them, [which-Key](https://github.com/justbur/emacs-which-key) is a minor mode for Emacs that displays the key bindings following your currently entered incomplete command in a popup.
+Sometimes we forget shortcuts as we type them, [which-key](https://github.com/justbur/emacs-which-key) is a minor mode for Emacs that displays the key bindings following your currently entered incomplete command in a popup.
 
 I'm not using helpful anymore.
-~~[Helpful](https://github.com/Wilfred/helpful) adds a lot of very helpful information to `describe-` command buffers. For example, if you use `describe-function`, you will not only get the documentation about the function, you will also see the source code of the function and where it gets used in other places in the Emacs configuration.~~
+~~The [helpful](https://github.com/Wilfred/helpful) adds a lot of very helpful information to `describe-` command buffers. For example, if you use `describe-function`, you will not only get the documentation about the function, you will also see the source code of the function and where it gets used in other places in the Emacs configuration.~~
 
 This is the `init-help.el` file, nothing special.
 
@@ -1778,6 +1778,8 @@ The hidden gem is `ox-hugo`, you can manage your website content from Emacs, tha
 ;; Hugo
 (leaf ox-hugo
   :straight t
+  :hook
+  (org-mode-hook . org-hugo-auto-export-mode)
   :after ox)
 
 (provide 'init-org-export)
@@ -2468,7 +2470,7 @@ My learning path has been discontinuous, but good enough to learn this beautiful
 
 
 [Protesilaos Stavrou](https://protesilaos.com/)
-: is a gold mine, he's a very clever and wonderful person. I appreciate his verbose explanations about any kind of magic trick he do with Emacs.
+: is a gold mine, he's a very clever and wonderful person. I appreciate his verbose explanations about any kind of magic trick he does with Emacs.
 
 
 [Mike Zamansky](https://www.youtube.com/user/mzamansky)
