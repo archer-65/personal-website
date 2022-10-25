@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-19
+date = 2022-10-25
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -2010,6 +2010,25 @@ This is `init-spell-and-check.el`.
   :straight t
   :mode "\\.json\\'")
 
+(leaf rustic
+  :straight t
+  :mode "\\.rs\\'"
+  :bind (:rustic-mode-map
+         ("M-j" . lsp-ui-imenu)
+         ("M-?" . lsp-find-references)
+         ("C-c C-c l" . flycheck-list-errors)
+         ("C-c C-c a" . lsp-execute-code-action)
+         ("C-c C-c r" . lsp-rename)
+         ("C-c C-c q" . lsp-workspace-restart)
+         ("C-c C-c Q" . lsp-workspace-shutdown)
+         ("C-c C-c s" . lsp-rust-analyzer-status))
+  :config
+  ;; uncomment for less flashiness
+  ;; (setq lsp-eldoc-hook nil)
+  ;; (setq lsp-enable-symbol-highlighting nil)
+  ;; (setq lsp-signature-auto-activate nil)
+  (setq rustic-format-on-save t))
+
 (provide 'init-extra-modes)
 ;;; init-extra-modes.el ends here
 ```
@@ -2072,24 +2091,32 @@ Here `init-snippets.el`.
 ;;; Code:
 
 (leaf lsp-mode
-  :commands lsp
   :straight t
+  :commands lsp
   ;; :bind
   ;; (lsp-mode-map
   ;;   ("<tab>" . company-indent-or-complete-common))
   :init
   (setq lsp-keymap-prefix "C-c l")
+
+  (defun archer/lsp-mode-setup-completion ()
+    (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
+          '(orderless))) ;; Configure flex
   :config
   (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
   (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
                                         :major-modes '(nix-mode)
                                         :server-id 'nix))
+  :custom
+  (lsp-completion-provider . :none)
   :hook
   (c-mode-hook    . lsp)
   (c++-mode-hook  . lsp)
   (java-mode-hook . lsp)
   (nix-mode-hook  . lsp)
-  (lsp-mode-hook  . lsp-enable-which-key-integration))
+  (rustic-mode-hook . lsp)
+  (lsp-mode-hook  . lsp-enable-which-key-integration)
+  (lsp-completion-mode . archer/lsp-mode-setup-completion))
 
 (leaf lsp-ui
   :straight t
