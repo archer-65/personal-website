@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-25
+date = 2022-10-26
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -291,7 +291,7 @@ Right now I'm good with 16MB for high threshold.
   ;; when it's idle. However, if the idle delay is too long, we run the risk of
   ;; runaway memory usage in busy sessions. If it's too low, then we may as well
   ;; not be using gcmh at all.
-  (setq gcmh-idle-delay 'auto ; Default 15 seconds
+  (setq gcmh-idle-delay 1 ; Default 15 seconds
         gcmh-auto-idle-delay-factor 10
         gcmh-high-cons-threshold (* 16 1024 1024)) ; 16MB
   :require t
@@ -1443,6 +1443,8 @@ With `ibuffer` I can group buffers in `Gnus` style, customize actions rememberin
            ("c/c++" (or (mode . c-mode)
                         (mode . c++-mode)))
            ("nix" (mode . nix-mode))
+           ("rust" (or (mode . rustic-mode)
+                       (name . "\\.rs")))
            ("telegram" (or (mode . telega-mode)
                            (mode . telega-chat-mode)))
            ("documents" (or (name . "\\.pdf")
