@@ -997,7 +997,7 @@ targets."
 
 ```
 
-I'm using Corfu right now, while Company is here due to `telega.el`, especially for child frames instead of overlays.
+~~I'm using Corfu right now, while Company is here due to `telega.el`, especially for child frames instead of overlays.~~ Nevermind, I'm using Company again, `rust-analyzer` and `jdtls` give me trouble with Corfu :(.
 
 Here `init-complete-in-buffer.el`.
 
@@ -1011,16 +1011,37 @@ Here `init-complete-in-buffer.el`.
 ;;; Code:
 
 (leaf company
-  ;; :after lsp-mode
   :straight t
   :bind
   (company-active-map
    ("<tab>" . company-complete-selection))
-  :hook
-  (telega-chat-mode-hook . company-mode))
+  ;; :hook
+  ;; (telega-chat-mode-hook . company-mode) ;; Only when Corfu is enabled!
+  :custom
+  (global-company-mode . t))
 
 (leaf corfu
   :straight t
+  :disabled t
+
+  ;; Recommended: Enable Corfu globally.
+  ;; This is recommended since Dabbrev can be used globally (M-/).
+  ;; See also `corfu-excluded-modes'.
+  :init
+  (global-corfu-mode)
+
+  ;; Function to enable corfu in lsp-mode
+  (defun archer/lsp-mode-setup-completion ()
+    (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
+          '(orderless))) ;; Configure flex
+
+  ;; Load and enable corfu-history
+  (load "extensions/corfu-history")
+  (corfu-history-mode)
+  (add-to-list 'savehist-additional-variables 'corfu-history)
+
+  ;; TAB cycle if there are only few candidates
+  (setq completion-cycle-threshold t)
   :custom
   (corfu-cycle . t)                 ;; Enable cycling for `corfu-next/previous'
   (corfu-auto . t)                  ;; Enable auto completion
@@ -1033,19 +1054,8 @@ Here `init-complete-in-buffer.el`.
   (corfu-echo-documentation . 0.25) ;; Disable documentation in the echo area
   (corfu-scroll-margin . 5)         ;; Use scroll margin
 
-  ;; Recommended: Enable Corfu globally.
-  ;; This is recommended since Dabbrev can be used globally (M-/).
-  ;; See also `corfu-excluded-modes'.
-  :init
-  (global-corfu-mode)
-
-  ;; Load and enable corfu-history
-  (load "extensions/corfu-history")
-  (corfu-history-mode)
-  (add-to-list 'savehist-additional-variables 'corfu-history)
-
-  ;; TAB cycle if there are only few candidates
-  (setq completion-cycle-threshold t))
+  ;; Mandatory for LSP completion with Corfu
+  (lsp-completion-provider . :none))
 
 (provide 'init-complete-in-buffer)
 ;;; init-complete-in-buffer.el ends here
@@ -1445,6 +1455,7 @@ With `ibuffer` I can group buffers in `Gnus` style, customize actions rememberin
            ("nix" (mode . nix-mode))
            ("rust" (or (mode . rustic-mode)
                        (name . "\\.rs")))
+           ("java" (mode . java-mode))
            ("telegram" (or (mode . telega-mode)
                            (mode . telega-chat-mode)))
            ("documents" (or (name . "\\.pdf")
@@ -2095,22 +2106,16 @@ Here `init-snippets.el`.
 (leaf lsp-mode
   :straight t
   :commands lsp
-  ;; :bind
-  ;; (lsp-mode-map
-  ;;   ("<tab>" . company-indent-or-complete-common))
+  :bind
+  (lsp-mode-map
+    ("<tab>" . company-indent-or-complete-common))
   :init
   (setq lsp-keymap-prefix "C-c l")
-
-  (defun archer/lsp-mode-setup-completion ()
-    (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
-          '(orderless))) ;; Configure flex
   :config
   (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
   (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
                                         :major-modes '(nix-mode)
                                         :server-id 'nix))
-  :custom
-  (lsp-completion-provider . :none)
   :hook
   (c-mode-hook    . lsp)
   (c++-mode-hook  . lsp)
