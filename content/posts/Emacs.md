@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-28
+date = 2022-10-29
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -2042,6 +2042,15 @@ This is `init-spell-and-check.el`.
   ;; (setq lsp-signature-auto-activate nil)
   (setq rustic-format-on-save t))
 
+(leaf terraform-mode
+  :straight t
+  :mode "\\.tf\\'"
+  :config
+  (leaf company-terraform
+    :straight t
+    :config
+    (company-terraform-init)))
+
 (provide 'init-extra-modes)
 ;;; init-extra-modes.el ends here
 ```
@@ -2116,13 +2125,14 @@ Here `init-snippets.el`.
   (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
                                         :major-modes '(nix-mode)
                                         :server-id 'nix))
-  (setq lsp-disabled-clients '(tfls))
+  ;; (setq lsp-disabled-clients '(tfls))
   :hook
   (c-mode-hook    . lsp)
   (c++-mode-hook  . lsp)
   (java-mode-hook . lsp)
   (nix-mode-hook  . lsp)
   (rustic-mode-hook . lsp)
+  (terraform-mode . lsp-deferred)
   (lsp-mode-hook  . lsp-enable-which-key-integration)
   (lsp-completion-mode . archer/lsp-mode-setup-completion))
 
