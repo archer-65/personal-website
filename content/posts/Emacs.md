@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-29
+date = 2022-10-30
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -795,8 +795,6 @@ Keybindings and configuration are in the `init-consult.el` file.
 (leaf consult
   :doc "Practical commands based on the Emacs completion function completing-read."
   :straight t
-  :init
-  (add-to-list 'consult-buffer-sources 'coding-buffer-source 'append)
   ;; Replace bindings. Lazily loaded due by `use-package'.
   :bind (;; C-c bindings (mode specific)
          ("C-c h" . consult-history)
@@ -1012,18 +1010,24 @@ Here `init-complete-in-buffer.el`.
 
 (leaf company
   :straight t
-  :bind
-  (company-active-map
-   ("<tab>" . company-complete-selection))
+  :bind ((company-active-map ("C-n" . company-select-next)
+                             ("C-p" . company-select-previous)
+                             ("C-s" . company-filter-candidates)
+                             ("C-i" . company-complete-selection)
+                             ("<tab>" . company-complete-selection)
+                             ("M-d" . company-show-doc-buffer))
+         (company-search-map ("C-n" . company-select-next)
+                             ("C-p" . company-select-previous))
+         ("C-c C-/" . company-files)
+         ("C-c y" . company-yasnippet))
   ;; :hook
   ;; (telega-chat-mode-hook . company-mode) ;; Only when Corfu is enabled!
   :custom
   (global-company-mode . t))
 
 (leaf corfu
-  :straight t
   :disabled t
-
+  :straight t
   ;; Recommended: Enable Corfu globally.
   ;; This is recommended since Dabbrev can be used globally (M-/).
   ;; See also `corfu-excluded-modes'.
@@ -1055,7 +1059,10 @@ Here `init-complete-in-buffer.el`.
   (corfu-scroll-margin . 5)         ;; Use scroll margin
 
   ;; Mandatory for LSP completion with Corfu
-  (lsp-completion-provider . :none))
+  (lsp-completion-provider . :none)
+
+  :hook
+  (lsp-completion-mode . archer/lsp-mode-setup-completion))
 
 (provide 'init-complete-in-buffer)
 ;;; init-complete-in-buffer.el ends here
@@ -1804,8 +1811,6 @@ The hidden gem is `ox-hugo`, you can manage your website content from Emacs, tha
 ;; Hugo
 (leaf ox-hugo
   :straight t
-  :hook
-  (org-mode-hook . org-hugo-auto-export-mode)
   :after ox)
 
 (provide 'init-org-export)
@@ -2036,10 +2041,6 @@ This is `init-spell-and-check.el`.
          ("C-c C-c Q" . lsp-workspace-shutdown)
          ("C-c C-c s" . lsp-rust-analyzer-status))
   :config
-  ;; uncomment for less flashiness
-  ;; (setq lsp-eldoc-hook nil)
-  ;; (setq lsp-enable-symbol-highlighting nil)
-  ;; (setq lsp-signature-auto-activate nil)
   (setq rustic-format-on-save t))
 
 (leaf terraform-mode
@@ -2125,7 +2126,29 @@ Here `init-snippets.el`.
   (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
                                         :major-modes '(nix-mode)
                                         :server-id 'nix))
-  ;; (setq lsp-disabled-clients '(tfls))
+  ;; (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
+  ;; (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("nil"))
+  ;;					:major-modes '(nix-mode)
+  ;; 					:activation-fn (lsp-activate-on "nix")
+  ;;					:server-id 'nix-nil))
+  (setq lsp-keep-workspace-alive nil)
+  ;; uncomment for less flashiness
+  ;; (setq lsp-eldoc-hook nil)
+  ;; (setq lsp-enable-symbol-highlighting nil)
+  ;; (setq lsp-signature-auto-activate nil)
+  :custom
+  ;; what to use when checking on-save. "check" is default, I prefer clippy
+  (lsp-rust-analyzer-cargo-watch-command "clippy")
+  (lsp-eldoc-render-all t)
+  (lsp-idle-delay 0.6)
+  ;; enable / disable the hints as you prefer:
+  (lsp-rust-analyzer-server-display-inlay-hints t)
+  (lsp-rust-analyzer-display-lifetime-elision-hints-enable "skip_trivial")
+  (lsp-rust-analyzer-display-chaining-hints t)
+  (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names nil)
+  (lsp-rust-analyzer-display-closure-return-type-hints t)
+  (lsp-rust-analyzer-display-parameter-hints nil)
+  (lsp-rust-analyzer-display-reborrow-hints nil)
   :hook
   (c-mode-hook    . lsp)
   (c++-mode-hook  . lsp)
@@ -2133,8 +2156,7 @@ Here `init-snippets.el`.
   (nix-mode-hook  . lsp)
   (rustic-mode-hook . lsp)
   (terraform-mode . lsp-deferred)
-  (lsp-mode-hook  . lsp-enable-which-key-integration)
-  (lsp-completion-mode . archer/lsp-mode-setup-completion))
+  (lsp-mode-hook  . lsp-enable-which-key-integration))
 
 (leaf lsp-ui
   :straight t
@@ -2156,6 +2178,31 @@ Here `init-snippets.el`.
 ;; optionally if you want to use debugger
 ;; (leaf dap-mode)
 ;; (leaf dap-LANGUAGE) to load the dap adapter for your language
+
+;; Not working now, I need time to try :(
+(leaf eglot
+  :disabled t
+  :init
+  (unless (package-installed-p 'eglot) straight-use-package 'eglot)
+  :config
+  (setq rustic-lsp-client 'eglot)
+  (add-to-list 'eglot-server-programs '((c++-mode c-mode) "clangd"))
+  (add-to-list 'eglot-server-programs '(nix-mode . ("rnix-lsp")))
+  :hook
+  (c-mode-hook    . eglot-ensure)
+  (c++-mode-hook  . eglot-ensure)
+  (java-mode-hook . eglot-ensure)
+  (nix-mode-hook  . eglot-ensure)
+  (rustic-mode-hook . eglot-ensure)
+  (terraform-mode . eglot-ensure))
+
+(leaf eglot-java
+  :disabled t
+  :straight t
+  :require t
+  :after eglot
+  :config
+  (eglot-java-init))
 
 (provide 'init-lsp)
 ;;; init-lsp.el ends here
@@ -2225,7 +2272,7 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
         message-kill-buffer-on-exit t
         ;; Start with default context
         mu4e-context-policy 'pick-first
-        mu4e-compose-context-policy 'ask-if-none
+        mu4e-compose-context-policy 'ask
         ;; Why confirm quit?
         mu4e-confirm-quit nil)
 
@@ -2233,7 +2280,7 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
   (setq mail-user-agent 'mu4e-user-agent)
 
   ;; Use mu4e for sending e-mail
-  (setq send-mail-function #'smtpmail-send-it
+  (setq send-mail-function 'smtpmail-send-it
         message-sendmail-f-is-evil t
         message-sendmail-extra-arguments '("--read-envelope-from")
         message-send-mail-function 'message-send-mail-with-sendmail)
@@ -2253,7 +2300,7 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
             (lambda (msg)
               (when msg
                 (string-prefix-p "/GmailPrimary" (mu4e-message-field msg :maildir))))
-            :vars '((user-email-address . "mario.liguori.056@gmail.com")
+            :vars '((user-mail-address . "mario.liguori.056@gmail.com")
                     (smtpmail-smtp-user . "mario.liguori.056@gmail.com")
                     (user-full-name     . "Mario Liguori")
                     (mu4e-sent-folder   . "/GmailPrimary/[Gmail]/Sent Mail")
@@ -2272,7 +2319,7 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
             (lambda (msg)
               (when msg
                 (string-prefix-p "/Unina" (mu4e-message-field msg :maildir))))
-            :vars '((user-email-address . "mario.liguori6@studenti.unina.it")
+            :vars '((user-mail-address . "mario.liguori6@studenti.unina.it")
                     (smtpmail-smtp-user . "mario.liguori6@studenti.unina.it")
                     (user-full-name     . "Mario Liguori")
                     (mu4e-drafts-folder . "/Unina/Bozze")
