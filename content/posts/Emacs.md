@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-10-30
+date = 2022-11-08
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -508,7 +508,7 @@ Here the `init.appearance.el` file.
 ;; For packaged versions which must use `require':
 (leaf modus-themes
   :doc "Wonderful built-in themes by Protesilaos Stavrou"
-  :straight t
+  :straight (modus-themes :type built-in)
   :init
   (setq modus-themes-region '(accented no-extend bg-only) ;; Region highlight
         modus-themes-org-blocks 'gray-background ;; Org source blocks background
@@ -1156,8 +1156,16 @@ Following, my `init-editing.el`.
 ;;; Protesilaos Stavrou docet, system clipboard should have priority among kill-ring
 (setq save-interprogram-paste-before-kill t)
 
+(leaf format-all
+  :doc "Same command to auto-format source code in many languages"
+  :straight t
+  ;; :hook
+  ;; (prog-mode-hook . format-all-ensure-formatter)
+  :bind
+  ("<f1>" . format-all-buffer))
+
 (leaf delsel
-  :doc "Should be default IMHO."
+  :doc "Should be default IMHO"
   :blackout t
   :hook
   (after-init-hook . delete-selection-mode))
@@ -2016,6 +2024,10 @@ This is `init-spell-and-check.el`.
 
 ;;; Code:
 
+(leaf cmake-mode
+  :straight t
+  :mode "\\CMakeLists\\.txt\\'" "\\.cmake\\'")
+
 (leaf nix-mode
   :straight t
   :mode "\\.nix\\'")
@@ -2122,10 +2134,10 @@ Here `init-snippets.el`.
   :init
   (setq lsp-keymap-prefix "C-c l")
   :config
-  (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
-  (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
-                                        :major-modes '(nix-mode)
-                                        :server-id 'nix))
+  ;; (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
+  ;; (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
+  ;; 					:major-modes '(nix-mode)
+  ;;  					:server-id 'nix))
   ;; (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
   ;; (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("nil"))
   ;;					:major-modes '(nix-mode)
@@ -2155,6 +2167,7 @@ Here `init-snippets.el`.
   (java-mode-hook . lsp)
   (nix-mode-hook  . lsp)
   (rustic-mode-hook . lsp)
+  (cmake-mode . lsp-deferred)
   (terraform-mode . lsp-deferred)
   (lsp-mode-hook  . lsp-enable-which-key-integration))
 
