@@ -1,7 +1,7 @@
 +++
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
-date = 2022-11-08
+date = 2022-11-11
 tags = ["emacs"]
 categories = ["workflow"]
 draft = false
@@ -291,7 +291,7 @@ Right now I'm good with 16MB for high threshold.
   ;; when it's idle. However, if the idle delay is too long, we run the risk of
   ;; runaway memory usage in busy sessions. If it's too low, then we may as well
   ;; not be using gcmh at all.
-  (setq gcmh-idle-delay 1 ; Default 15 seconds
+  (setq gcmh-idle-delay 'auto ; Default 15 seconds
         gcmh-auto-idle-delay-factor 10
         gcmh-high-cons-threshold (* 16 1024 1024)) ; 16MB
   :require t
@@ -508,7 +508,7 @@ Here the `init.appearance.el` file.
 ;; For packaged versions which must use `require':
 (leaf modus-themes
   :doc "Wonderful built-in themes by Protesilaos Stavrou"
-  :straight (modus-themes :type built-in)
+  :straight t
   :init
   (setq modus-themes-region '(accented no-extend bg-only) ;; Region highlight
         modus-themes-org-blocks 'gray-background ;; Org source blocks background
@@ -532,7 +532,7 @@ Here the `init.appearance.el` file.
         modus-themes-mail-citations 'intense ; {nil,'intense,'faint,'monochrome}
         modus-themes-subtle-line-numbers nil
         modus-themes-mode-line '(borderless accented))
-  (modus-themes-load-themes)
+  (modus-themes-load-themes) ;; Needed for packaged version
   :hook
   (modus-themes-after-load-theme-hook . my-modus-themes-custom-faces)
   :config
@@ -1010,18 +1010,22 @@ Here `init-complete-in-buffer.el`.
 
 (leaf company
   :straight t
-  :bind ((company-active-map ("C-n" . company-select-next)
-                             ("C-p" . company-select-previous)
-                             ("C-s" . company-filter-candidates)
-                             ("C-i" . company-complete-selection)
-                             ("<tab>" . company-complete-selection)
-                             ("M-d" . company-show-doc-buffer))
-         (company-search-map ("C-n" . company-select-next)
-                             ("C-p" . company-select-previous))
-         ("C-c C-/" . company-files)
-         ("C-c y" . company-yasnippet))
-  ;; :hook
-  ;; (telega-chat-mode-hook . company-mode) ;; Only when Corfu is enabled!
+  :bind
+  (:lsp-mode-map
+   ("<tab>" . company-indent-or-complete-common))
+  (:company-active-map
+   ("C-n" . company-select-next)
+   ("C-p" . company-select-previous)
+   ("C-s" . company-filter-candidates)
+   ("C-i" . company-complete-selection)
+   ("<tab>" . company-complete-selection)
+   ("M-d" . company-show-doc-buffer))
+  (:company-search-map ("C-n" . company-select-next)
+                       ("C-p" . company-select-previous))
+  ("C-c C-/" . company-files)
+  ("C-c y" . company-yasnippet)
+  :hook
+  (telega-chat-mode-hook . company-mode)
   :custom
   (global-company-mode . t))
 
@@ -1159,7 +1163,8 @@ Following, my `init-editing.el`.
 (leaf format-all
   :doc "Same command to auto-format source code in many languages"
   :straight t
-  ;; :hook
+  :hook
+  (prog-mode-hook . format-all-mode)
   ;; (prog-mode-hook . format-all-ensure-formatter)
   :bind
   ("<f1>" . format-all-buffer))
@@ -1992,6 +1997,21 @@ This is `init-spell-and-check.el`.
 (leaf flycheck
   :straight t
   :commands (flycheck-list-errors flycheck-buffer)
+  :init
+  ;; HACK: without this, the keywords added by leaf-keywords don't
+  ;; take effect in the checker process, so they all trigger an
+  ;; "unrecognized keyword" error.
+  (setq flycheck-emacs-lisp-check-form
+        (if (string-match-p "leaf-keywords"
+                            flycheck-emacs-lisp-check-form)
+            ;; Don't do anything on subsequent evals
+            flycheck-emacs-lisp-check-form
+          (format
+           "(progn %s %s)"
+           '(progn
+              (require 'leaf-keywords nil t)
+              (leaf-keywords-init))
+           flycheck-emacs-lisp-check-form)))
   :config
   (global-flycheck-mode)
   :custom
@@ -2040,6 +2060,9 @@ This is `init-spell-and-check.el`.
   :straight t
   :mode "\\.json\\'")
 
+(leaf c-mode
+  :mode "\\.c\\'")
+
 (leaf rustic
   :straight t
   :mode "\\.rs\\'"
@@ -2053,13 +2076,25 @@ This is `init-spell-and-check.el`.
          ("C-c C-c Q" . lsp-workspace-shutdown)
          ("C-c C-c s" . lsp-rust-analyzer-status))
   :config
-  (setq rustic-format-on-save t))
+  (setq rustic-format-on-save nil)
+  :custom
+  ;; lsp-mode related
+  ;; what to use when checking on-save. "check" is default, I prefer clippy
+  (lsp-rust-analyzer-cargo-watch-command . "clippy")
+  (lsp-rust-analyzer-display-lifetime-elision-hints-enable . "skip_trivial")
+  (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names . nil)
+  (lsp-rust-analyzer-display-closure-return-type-hints . t)
+  (lsp-rust-analyzer-display-reborrow-hints . nil)
+  (lsp-rust-analyzer-display-parameter-hints . nil)
+  (lsp-rust-analyzer-display-chaining-hints . t)
+  (lsp-rust-analyzer-server-display-inlay-hints . t))
 
 (leaf terraform-mode
   :straight t
   :mode "\\.tf\\'"
   :config
   (leaf company-terraform
+    :when (fboundp 'company-mode)
     :straight t
     :config
     (company-terraform-init)))
@@ -2125,56 +2160,79 @@ Here `init-snippets.el`.
 
 ;;; Code:
 
+;;
+;;; NOTE: These are taken from https://github.com/doomemacs/doomemacs/blob/master/modules/tools/lsp/config.el
+(defvar +lsp--default-read-process-output-max nil)
+(defvar +lsp--default-gcmh-high-cons-threshold nil)
+(defvar +lsp--optimization-init-p nil)
+
+(define-minor-mode +lsp-optimization-mode
+  "Deploys universal GC and IPC optimizations for `lsp-mode' and `eglot'."
+  :global t
+  :init-value nil
+  :group 'lsp
+  (if (not +lsp-optimization-mode)
+      (setq-default read-process-output-max +lsp--default-read-process-output-max
+                    gcmh-high-cons-threshold +lsp--default-gcmh-high-cons-threshold
+                    +lsp--optimization-init-p nil)
+    ;; Only apply these settings once!
+    (unless +lsp--optimization-init-p
+      (setq +lsp--default-read-process-output-max (default-value 'read-process-output-max)
+            +lsp--default-gcmh-high-cons-threshold (default-value 'gcmh-high-cons-threshold))
+      (setq-default read-process-output-max (* 1024 1024))
+      ;; REVIEW LSP causes a lot of allocations, with or without the native JSON
+      ;;        library, so we up the GC threshold to stave off GC-induced
+      ;;        slowdowns/freezes. Doom uses `gcmh' to enforce its GC strategy,
+      ;;        so we modify its variables rather than `gc-cons-threshold'
+      ;;        directly.
+      (setq-default gcmh-high-cons-threshold (* 2 +lsp--default-gcmh-high-cons-threshold))
+      (gcmh-set-high-threshold)
+      (setq +lsp--optimization-init-p t))))
+
+;;
+;;; LSP-MODE
+
 (leaf lsp-mode
   :straight t
   :commands lsp
-  :bind
-  (lsp-mode-map
-    ("<tab>" . company-indent-or-complete-common))
   :init
-  (setq lsp-keymap-prefix "C-c l")
   :config
-  ;; (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
-  ;; (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("rnix-lsp"))
-  ;; 					:major-modes '(nix-mode)
-  ;;  					:server-id 'nix))
-  ;; (add-to-list 'lsp-language-id-configuration '(nix-mode . "nix"))
-  ;; (lsp-register-client (make-lsp-client :new-connection (lsp-stdio-connection '("nil"))
-  ;;					:major-modes '(nix-mode)
-  ;; 					:activation-fn (lsp-activate-on "nix")
-  ;;					:server-id 'nix-nil))
-  (setq lsp-keep-workspace-alive nil)
-  ;; uncomment for less flashiness
-  ;; (setq lsp-eldoc-hook nil)
-  ;; (setq lsp-enable-symbol-highlighting nil)
-  ;; (setq lsp-signature-auto-activate nil)
   :custom
-  ;; what to use when checking on-save. "check" is default, I prefer clippy
-  (lsp-rust-analyzer-cargo-watch-command "clippy")
-  (lsp-eldoc-render-all t)
-  (lsp-idle-delay 0.6)
-  ;; enable / disable the hints as you prefer:
-  (lsp-rust-analyzer-server-display-inlay-hints t)
-  (lsp-rust-analyzer-display-lifetime-elision-hints-enable "skip_trivial")
-  (lsp-rust-analyzer-display-chaining-hints t)
-  (lsp-rust-analyzer-display-lifetime-elision-hints-use-parameter-names nil)
-  (lsp-rust-analyzer-display-closure-return-type-hints t)
-  (lsp-rust-analyzer-display-parameter-hints nil)
-  (lsp-rust-analyzer-display-reborrow-hints nil)
+  (lsp-keymap-prefix . "C-c l")
+  (lsp-keep-workspace-alive . nil)
+  (lsp-auto-guess-root . nil)
+  (lsp-log-io . nil)
+  (lsp-restart . 'auto-restart)
+  (lsp-enable-symbol-highlighting . t)
+  (lsp-enable-on-type-formatting . t)
+  (lsp-signature-auto-activate . nil)
+  (lsp-signature-render-documentation . t)
+  (lsp-modeline-code-actions-enable . nil)
+  (lsp-modeline-diagnostics-enable . nil)
+  (lsp-headerline-breadcrumb-enable . t)
+  (lsp-semantic-tokens-enable . nil)
+  (lsp-eldoc-render-all . t)
+  (lsp-idle-delay . 0.5)
+  (lsp-enable-snippet . t)
+  (lsp-enable-folding . nil)
+  (lsp-enable-imenu . t)
+  (lsp-eldoc-hook . '(lsp-hover))
   :hook
-  (c-mode-hook    . lsp)
-  (c++-mode-hook  . lsp)
-  (java-mode-hook . lsp)
-  (nix-mode-hook  . lsp)
-  (rustic-mode-hook . lsp)
-  (cmake-mode . lsp-deferred)
-  (terraform-mode . lsp-deferred)
+  ((c-mode-hook c++-mode-hook java-mode-hook nix-mode-hook rustic-mode-hook cmake-mode-hook terraform-mode-hook) . lsp-deferred)
+  (lsp-mode-hook . +lsp-optimization-mode)
   (lsp-mode-hook  . lsp-enable-which-key-integration))
 
 (leaf lsp-ui
   :straight t
   :after lsp
-  :commands lsp-ui-mode)
+  :commands lsp-ui-mode
+  :custom
+  (lsp-ui-doc-enable . t)
+  (lsp-ui-doc-header . t)
+  (lsp-ui-doc-include-signature . t)
+  (lsp-ui-doc-border . '(face-foreground 'default))
+  (lsp-ui-sideline-show-code-actions . t)
+  (lsp-ui-sideline-delay . 0.05))
 
 (leaf lsp-treemacs
   :straight t
@@ -2191,6 +2249,9 @@ Here `init-snippets.el`.
 ;; optionally if you want to use debugger
 ;; (leaf dap-mode)
 ;; (leaf dap-LANGUAGE) to load the dap adapter for your language
+
+;;
+;;; EGLOT
 
 ;; Not working now, I need time to try :(
 (leaf eglot
@@ -2270,7 +2331,7 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
   :init
   (provide 'html2text)
   :config
-   ;; Load org-mode integration
+  ;; Load org-mode integration
   (require 'org-mu4e)
   (require 'mu4e-contrib)
 
@@ -2308,41 +2369,40 @@ Last but not least: [org-msg](https://github.com/jeremy-compostella/org-msg), an
         `(
           ;; Gmail Primary (new) Account
           ,(make-mu4e-context
-            :name "Gmail Primary"
+            :name "Gmail"
             :match-func
             (lambda (msg)
               (when msg
-                (string-prefix-p "/GmailPrimary" (mu4e-message-field msg :maildir))))
+                (string-prefix-p "/gmail" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address . "mario.liguori.056@gmail.com")
                     (smtpmail-smtp-user . "mario.liguori.056@gmail.com")
                     (user-full-name     . "Mario Liguori")
-                    (mu4e-sent-folder   . "/GmailPrimary/[Gmail]/Sent Mail")
-                    (mu4e-drafts-folder . "/GmailPrimary/[Gmail]/Drafts")
-                    (mu4e-trash-folder  . "/GmailPrimary/[Gmail]/Trash")
+                    (mu4e-sent-folder   . "/gmail/sent")
+                    (mu4e-drafts-folder . "/gmail/drafts")
+                    (mu4e-trash-folder  . "/gmail/trash")
                     (mu4e-maildir-shortcuts .
-                                            (("/GmailPrimary/Inbox"     . ?i)
-                                             ("/GmailPrimary/[Gmail]/Sent Mail" . ?s)
-                                             ("/GmailPrimary/[Gmail]/Trash"     . ?t)
-                                             ("/GmailPrimary/[Gmail]/Drafts"    . ?d)))))
-
-          ;;UniNa
+                                            (("/gmail/inbox"  . ?i)
+                                             ("/gmail/sent"   . ?s)
+                                             ("/gmail/trash"  . ?t)
+                                             ("/gmail/drafts" . ?d)))))
+          ;;Unina
           ,(make-mu4e-context
             :name "Unina"
             :match-func
             (lambda (msg)
               (when msg
-                (string-prefix-p "/Unina" (mu4e-message-field msg :maildir))))
+                (string-prefix-p "/unina" (mu4e-message-field msg :maildir))))
             :vars '((user-mail-address . "mario.liguori6@studenti.unina.it")
                     (smtpmail-smtp-user . "mario.liguori6@studenti.unina.it")
                     (user-full-name     . "Mario Liguori")
-                    (mu4e-drafts-folder . "/Unina/Bozze")
-                    (mu4e-sent-folder   . "/Unina/Posta inviata")
-                    (mu4e-trash-folder  . "/Unina/Deleted Items")
+                    (mu4e-drafts-folder . "/unina/Bozze")
+                    (mu4e-sent-folder   . "/unina/Posta inviata")
+                    (mu4e-trash-folder  . "/unina/Posta eliminata")
                     (mu4e-maildir-shortcuts .
-                                            (("/Unina/Inbox"         . ?i)
-                                             ("/Unina/Posta inviata" . ?s)
-                                             ("/Unina/Deleted Items" . ?t)
-                                             ("/Unina/Bozze"         . ?d)))))))
+                                            (("/unina/Inbox"         . ?i)
+                                             ("/unina/Posta inviata" . ?s)
+                                             ("/unina/Posta eliminata" . ?t)
+                                             ("/unina/Bozze"         . ?d)))))))
   ;; Set Bookmarks for all
   (setq  mu4e-bookmarks '(( :name  "Unread messages"
                             :query "flag:unread AND NOT flag:trashed"
