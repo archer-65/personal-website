@@ -5,6 +5,8 @@ languageCode: en-us
 
 enableEmoji: true
 
+enableGitInfo: true
+
 params:
   defaultTheme: auto
 
@@ -59,15 +61,19 @@ menu:
       name: Posts
       url: /posts
       weight: 10
+    - identifier: workflow
+      name: Workflow
+      url: /workflow
+      weight: 20
     - identifier: search
       name: Search
       url: /search
-      weight: 20
-    - identifier: archives
-      name: Archive
-      url: /archives
       weight: 30
+    # - identifier: archives
+    #   name: Archive
+    #   url: /archives
+    #   weight: 30
     - identifier: about
       name: About me
       url: /about
-      weight: 40
+      weight: 50
