@@ -2,8 +2,8 @@
 title = "Emacs Configuration"
 author = ["Mario Liguori"]
 date = 2022-06-13
-lastmod = 2022-11-20T01:08:15+01:00
-tags = ["emacs"]
+lastmod = 2022-11-20T01:16:59+01:00
+tags = ["emacs", "configuration", "elisp", "dotfiles"]
 categories = ["workflow"]
 draft = false
 +++
